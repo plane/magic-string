@@ -1,5 +1,5 @@
 #lang reader "reader.rkt"
-
+#|
 (require syntax/parse/define)
 
 (define-syntax-parse-rule (#%string-literal-abc s)
@@ -13,6 +13,8 @@
 (module+ test
   (require rackunit)
   (check-equal? #abc"def" "defdef"))
+
+|#
 
 #f
 

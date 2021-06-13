@@ -8,18 +8,17 @@
 (require racket/port
          racket/syntax)
 
-(define (not-eof . ports)
-  (define (not-eof* port)
-    (not (equal? port eof)))
-  (andmap not-eof* ports))
+(define (not-eof . xs)
+  (define (not-eof* x)
+    (not (equal? x eof)))
+  (andmap not-eof* xs))
 
 (define (read-magic-string src in ch readtable)
   (let* ([name  (read-syntax/recursive src in #f readtable)]
          [arg   (read-syntax/recursive src in #f readtable)]
          [name* (format-id name "#%string-literal-~a" name)])
     (if (not-eof name arg)
-        (quasisyntax/loc name
-          (#,name* #,arg))
+        #`(#,name* #,arg)
         #f)))
 
 (define (name-char? ch)
@@ -33,7 +32,7 @@
       #\}
       #\#) #f]
     [else
-     (not (equal? ch eof))]))
+     (not-eof ch)]))
 
 (define (char+port ch in)
   (define prefix-str (string ch))
