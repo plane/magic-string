@@ -20,10 +20,10 @@
 
 ;; read a magic-string:
 ;;
-;;     #name"args"          =>  (#%string-literal-name "args")
-;;     #name#"args"         =>  (#%string-literal-name# #"args")
-;;     #name"args"opts      =>  (#%string-literal-name "args" #:opts "opts")
-;;     #name#"args"opts     =>  (#%string-literal-name# #"args" #:opts "opts")
+;;     #name"arg"          =>  (#%string-literal-name "arg")
+;;     #name#"arg"         =>  (#%string-literal-name# #"arg")
+;;     #name"arg"opts      =>  (#%string-literal-name "arg" #:opts "opts")
+;;     #name#"arg"opts     =>  (#%string-literal-name# #"arg" #:opts "opts")
 ;;
 ;; it can be a byte-string or have opts; opts are stringified.
 ;;
