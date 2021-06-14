@@ -109,15 +109,24 @@
     (magic-string-read
      (open-input-string s)))
   (chk
-   (read-test "#f") #f
-   (read-test "#t") #t
-   (read-test "#false") #false
-   (read-test "#true") #true
-   (read-test "#\"abc\"") '#"abc"
-   (read-test "#f\"f-test\"") '(#%string-literal-f "f-test")
-   (read-test "#rx\"re-test\"") '(#%string-literal-rx "re-test")
+   ;; existing forms should still work
+   (read-test "#f")              #f
+   (read-test "#t")              #t
+   (read-test "#false")          #false
+   (read-test "#true")           #true
+
+   ;; including bytestrings
+   (read-test "#\"abc\"")        '#"abc"
+
+   ;; regexps can be trivially reimplemented here, though
+   (read-test "#rx\"re-test\"")  '(#%string-literal-rx "re-test")
    (read-test "#rx#\"re-test\"") '(#%string-literal-rx# #"re-test")
-   (read-test "#px\"re-test\"") '(#%string-literal-px "re-test")
+   (read-test "#px\"re-test\"")  '(#%string-literal-px "re-test")
    (read-test "#px#\"re-test\"") '(#%string-literal-px# #"re-test")
-   (read-test "#foo\"bar\"") '(#%string-literal-foo "bar")
-   (read-test "#foo\"bar\"baz") '(#%string-literal-foo "bar" #:opts "baz")))
+
+   ;; now let's test some magic-strings
+   (read-test "#f\"f-test\"")    '(#%string-literal-f "f-test")
+   (read-test "#foo\"bar\"")     '(#%string-literal-foo "bar")
+
+   ;; they can have optional arguments
+   (read-test "#foo\"bar\"baz")  '(#%string-literal-foo "bar" #:opts "baz")))
