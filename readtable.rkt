@@ -49,22 +49,22 @@
 
 (define (read-magic-string src in ch readtable)
   (strip-context
-   (let* ([name   (read-syntax/recursive src in #f readtable)]
-          [name   (format-id #f "#%string-literal-~a" name)]
-          [bytes? (ends-with-#? name)]
-          [in     (if bytes? (char+port #\# in) in)]
-          [data   (read-syntax/recursive src in #f readtable)]
-          [opts?  (opts-char? (peek-char in))]
-          [opts   (and opts? (read-syntax/recursive src in #f readtable))]
-          [opts   (and opts? (symbol->string (syntax-e opts)))])
+   (let* ([name     (read-syntax/recursive src in #f readtable)]
+          [name-fmt (format-id #f "#%string-literal-~a" name)]
+          [bytes?   (ends-with-#? name)]
+          [in       (if bytes? (char+port #\# in) in)]
+          [str-arg  (read-syntax/recursive src in #f readtable)]
+          [opts?    (opts-char? (peek-char in))]
+          [opts     (and opts? (read-syntax/recursive src in #f readtable))]
+          [opts-str (and opts? (symbol->string (syntax-e opts)))])
      (cond
-       [opts? #`(#,name #,data #:opts #,opts)]
-       [else  #`(#,name #,data)]))))
+       [opts? #`(#,name-fmt #,str-arg #:opts #,opts-str)]
+       [else  #`(#,name-fmt #,str-arg)]))))
 
 (define (make-magic-string-proc readtable)
   (lambda (ch in src line col pos)
     (define peek-in (peeking-input-port in))
-    (let loop ([chars-ahead 0])
+    (let loop ([name-char-count 0])
       (let* ([peek-ch            (read-char peek-in)]
              [peek-ch+           (peek-char peek-in)]
              [name-char-next?    (name-char? peek-ch)]
@@ -74,13 +74,13 @@
              [any-string-next?   (or string-next? 
                                      bytestring-next?)]
              [magic-string-next? (and any-string-next?
-                                      (positive? chars-ahead))])
+                                      (positive? name-char-count))])
         (cond
           [magic-string-next?
            (read-magic-string src in ch readtable)]
           [name-char-next?
            (loop
-            (add1 chars-ahead))]
+            (add1 name-char-count))]
           [else
            (read-syntax/recursive src in ch readtable)])))))
   
