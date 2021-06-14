@@ -5,11 +5,68 @@
          magic-string-read-syntax
          wrapper1)
 
+;;
+;; reader for Julia-style non-standard string literals, called "magic strings"
+;; here for brevity's sake
+;;
+;; https://docs.julialang.org/en/v1/manual/metaprogramming/#Non-Standard-String-Literals
+;;
+
 (require racket/list
          racket/port
          racket/syntax
          syntax/strip-context
          threading)
+
+;; read a magic-string:
+;;
+;;     #name"args"          =>  (#%string-literal-name "args")
+;;     #name#"args"         =>  (#%string-literal-name# #"args")
+;;     #name"args"opts      =>  (#%string-literal-name "args" #:opts "opts")
+;;     #name#"args"opts     =>  (#%string-literal-name# #"args" #:opts "opts")
+;;
+;; it can be a byte-string or have opts; opts are stringified.
+;;
+(define (read-magic-string src in ch readtable)
+  (strip-context
+   (let* ([name     (read-syntax/recursive src in #f readtable)]
+          [name-fmt (format-id #f "#%string-literal-~a" name)]
+          [bytes?   (syntax-ends-with-#? name)]
+          [in       (if bytes? (char+port #\# in) in)]
+          [str-arg  (read-syntax/recursive src in #f readtable)]
+          [opts?    (opts-char? (peek-char in))]
+          [opts     (and opts? (read-syntax/recursive src in #f readtable))]
+          [opts-str (and opts? (symbol->string (syntax-e opts)))])
+     (cond
+       [opts? #`(#,name-fmt #,str-arg #:opts #,opts-str)]
+       [else  #`(#,name-fmt #,str-arg)]))))
+
+;;
+;; read ahead in the input stream to see if we've got a magic string.
+;; if so, read it with `read-magic-string`; otherwise, read normally
+;;
+(define (make-magic-string-proc readtable)
+  (lambda (ch in src line col pos)
+    (define peek-in (peeking-input-port in))
+    (let loop ([name-char-count 0])
+      (let* ([peek-ch            (read-char peek-in)]
+             [peek-ch+           (peek-char peek-in)]
+             [name-char-next?    (name-char? peek-ch)]
+             [string-next?       (equal? peek-ch #\")]
+             [bytestring-next?   (and (equal? peek-ch #\#)
+                                      (equal? peek-ch+ #\"))]
+             [any-string-next?   (or string-next? 
+                                     bytestring-next?)]
+             [magic-string-next? (and any-string-next?
+                                      (positive? name-char-count))])
+        (cond
+          [magic-string-next?
+           (read-magic-string src in ch readtable)]
+          [name-char-next?
+           (loop
+            (add1 name-char-count))]
+          [else
+           (read-syntax/recursive src in ch readtable)])))))
 
 ;;
 ;; utility functions
@@ -64,59 +121,8 @@
       (equal? #\#)))
 
 ;;
-;; read a magic-string:
-;;
-;;     #name"args"          =>  (#%string-literal-name "args")
-;;     #name#"args"         =>  (#%string-literal-name# #"args")
-;;     #name"args"opts      =>  (#%string-literal-name "args" #:opts "opts")
-;;     #name#"args"opts     =>  (#%string-literal-name# #"args" #:opts "opts")
-;;
-;; it can be a byte-string or have opts; opts are stringified.
-;;
-(define (read-magic-string src in ch readtable)
-  (strip-context
-   (let* ([name     (read-syntax/recursive src in #f readtable)]
-          [name-fmt (format-id #f "#%string-literal-~a" name)]
-          [bytes?   (syntax-ends-with-#? name)]
-          [in       (if bytes? (char+port #\# in) in)]
-          [str-arg  (read-syntax/recursive src in #f readtable)]
-          [opts?    (opts-char? (peek-char in))]
-          [opts     (and opts? (read-syntax/recursive src in #f readtable))]
-          [opts-str (and opts? (symbol->string (syntax-e opts)))])
-     (cond
-       [opts? #`(#,name-fmt #,str-arg #:opts #,opts-str)]
-       [else  #`(#,name-fmt #,str-arg)]))))
-
-;;
-;; read ahead in the input stream to see if we've got a magic string.
-;; if so, read it with `read-magic-string`; otherwise, read normally
-;;
-(define (make-magic-string-proc readtable)
-  (lambda (ch in src line col pos)
-    (define peek-in (peeking-input-port in))
-    (let loop ([name-char-count 0])
-      (let* ([peek-ch            (read-char peek-in)]
-             [peek-ch+           (peek-char peek-in)]
-             [name-char-next?    (name-char? peek-ch)]
-             [string-next?       (equal? peek-ch #\")]
-             [bytestring-next?   (and (equal? peek-ch #\#)
-                                      (equal? peek-ch+ #\"))]
-             [any-string-next?   (or string-next? 
-                                     bytestring-next?)]
-             [magic-string-next? (and any-string-next?
-                                      (positive? name-char-count))])
-        (cond
-          [magic-string-next?
-           (read-magic-string src in ch readtable)]
-          [name-char-next?
-           (loop
-            (add1 name-char-count))]
-          [else
-           (read-syntax/recursive src in ch readtable)])))))
-
-;;
-;; we'll take over # so we can check for magic strings, but we'll fall
-;; through to the default dispatch table if we don't find one
+;; we'll take over # in the readtable so we can check for magic strings,
+;; but we'll fall through to the default dispatch table if we don't find one
 ;;
 (define (make-magic-string-readtable [orig-readtable (current-readtable)])
   (make-readtable orig-readtable
