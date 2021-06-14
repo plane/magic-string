@@ -5,9 +5,11 @@
          magic-string-read-syntax
          wrapper1)
 
-(require racket/port
+(require racket/list
+         racket/port
          racket/syntax
-         syntax/strip-context)
+         syntax/strip-context
+         threading)
 
 (define eof? eof-object?)
 
@@ -30,21 +32,32 @@
     [else
      (not-eof? ch)]))
 
+(define (char+port ch in)
+  (define prefix-str (string ch))
+  (define prefix-port (open-input-string prefix-str))
+  (input-port-append #f prefix-port in))
+
+(define (ends-with-#? syntax)
+  (~> syntax
+      syntax-e
+      symbol->string
+      string->list
+      last
+      (equal? #\#)))
+
 (define (read-magic-string src in ch readtable)
   (strip-context
-   (let* ([name  (read-syntax/recursive src in #f readtable)]
-          [name? (not-eof? name)]
-          [name  (format-id #f "#%string-literal-~a" name)]
-          [data  (read-syntax/recursive src in #f readtable)]
-          [data? (not-eof? data)]
-          [opts? (name-char? (peek-char in))]
-          [opts  (and opts? (read-syntax/recursive src in #f readtable))]
-          [opts  (and opts? (symbol->string (syntax-e opts)))])
+   (let* ([name   (read-syntax/recursive src in #f readtable)]
+          [name   (format-id #f "#%string-literal-~a" name)]
+          [bytes? (ends-with-#? name)]
+          [in     (if bytes? (char+port #\# in) in)]
+          [data   (read-syntax/recursive src in #f readtable)]
+          [opts?  (name-char? (peek-char in))]
+          [opts   (and opts? (read-syntax/recursive src in #f readtable))]
+          [opts   (and opts? (symbol->string (syntax-e opts)))])
      (cond
-       [(not name?) #f]
-       [(not data?) #f]
-       [opts?       #`(#,name #,data #:opts #,opts)]
-       [else        #`(#,name #,data)]))))
+       [opts? #`(#,name #,data #:opts #,opts)]
+       [else  #`(#,name #,data)]))))
 
 (define (make-magic-string-proc readtable)
   (lambda (ch in src line col pos)
@@ -98,8 +111,8 @@
    (read-test "#\"abc\"") '#"abc"
    (read-test "#f\"f-test\"") '(#%string-literal-f "f-test")
    (read-test "#rx\"re-test\"") '(#%string-literal-rx "re-test")
-   (read-test "#rx#\"re-test\"") '(#%string-literal-rx# "re-test")
+   (read-test "#rx#\"re-test\"") '(#%string-literal-rx# #"re-test")
    (read-test "#px\"re-test\"") '(#%string-literal-px "re-test")
-   (read-test "#px#\"re-test\"") '(#%string-literal-px# "re-test")
+   (read-test "#px#\"re-test\"") '(#%string-literal-px# #"re-test")
    (read-test "#foo\"bar\"") '(#%string-literal-foo "bar")
    (read-test "#foo\"bar\"baz") '(#%string-literal-foo "bar" #:opts "baz")))

@@ -3,6 +3,8 @@
          syntax/parse/define
          (for-syntax racket/base))
 
+(require "regexp.rkt")
+
 (define-syntax-parse-rule (#%string-literal-abc s)
   (string-append s s))
 
@@ -13,6 +15,7 @@
    (syntax "no options")])
 
 #px"[\\s]*"
+#px#"[\\s]*"
 	
 #f"this is a format string {foo} {bar}"
 #f"this is a format string {foo} {bar}"opts
