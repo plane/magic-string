@@ -105,28 +105,35 @@
 
 (module+ test
   (require rackunit/chk)
+
   (define (read-test s)
     (magic-string-read
      (open-input-string s)))
+
   (chk
-   ;; existing forms should still work
-   (read-test "#f")              #f
-   (read-test "#t")              #t
-   (read-test "#false")          #false
-   (read-test "#true")           #true
+   ;; first, let's make sure we didn't break any existing forms
+   (read-test "#t")               #true
+   (read-test "#f")               #false
+   (read-test "#T")               #true
+   (read-test "#F")               #false
+   (read-test "#true")            #true
+   (read-test "#false")           #false
+   (read-test "#(1 2 3)")         '#(1 2 3)
+   (read-test "#[1 2 3]")         '#(1 2 3)
+   (read-test "#{1 2 3}")         '#(1 2 3)
+   (read-test "#3(foo bar)")      '#(foo bar bar)
+   (read-test "#5()")             '#(0 0 0 0 0)
+   (read-test "#\"abc\"")         '#"abc"
 
-   ;; including bytestrings
-   (read-test "#\"abc\"")        '#"abc"
-
-   ;; regexps can be trivially reimplemented here, though
-   (read-test "#rx\"re-test\"")  '(#%string-literal-rx "re-test")
-   (read-test "#rx#\"re-test\"") '(#%string-literal-rx# #"re-test")
-   (read-test "#px\"re-test\"")  '(#%string-literal-px "re-test")
-   (read-test "#px#\"re-test\"") '(#%string-literal-px# #"re-test")
+   ;; we'll clobber RE support though; it can be trivially reimplemented
+   (read-test "#rx\"re-test\"")   '(#%string-literal-rx "re-test")
+   (read-test "#rx#\"re-test\"")  '(#%string-literal-rx# #"re-test")
+   (read-test "#px\"re-test\"")   '(#%string-literal-px "re-test")
+   (read-test "#px#\"re-test\"")  '(#%string-literal-px# #"re-test")
 
    ;; now let's test some magic-strings
-   (read-test "#f\"f-test\"")    '(#%string-literal-f "f-test")
-   (read-test "#foo\"bar\"")     '(#%string-literal-foo "bar")
+   (read-test "#f\"f-test\"")     '(#%string-literal-f "f-test")
+   (read-test "#foo\"bar\"")      '(#%string-literal-foo "bar")
 
    ;; they can have optional arguments
-   (read-test "#foo\"bar\"baz")  '(#%string-literal-foo "bar" #:opts "baz")))
+   (read-test "#foo\"bar\"baz")   '(#%string-literal-foo "bar" #:opts "baz")))
