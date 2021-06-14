@@ -4,10 +4,11 @@ racket/base
 #:read-syntax magic-string-read-syntax
 #:wrapper1 wrapper1
 
+(require "readtable.rkt")
+
+;; these functions probably don't belong in here, TODO move
 (provide #%string-literal-rx
          #%string-literal-px)
-
-(require "readtable.rkt")
 
 (require syntax/parse/define)
 
@@ -17,4 +18,13 @@ racket/base
 
 (define-syntax-parse-rule
   (#%string-literal-px s)
-  (regexp s))
+  (pregexp s))
+
+(define-syntax-parse-rule
+  (#%string-literal-rx# s)
+  (byte-regexp s))
+
+(define-syntax-parse-rule
+  (#%string-literal-px# s)
+  (byte-pregexp s))
+
