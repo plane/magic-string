@@ -32,6 +32,8 @@
     [else
      (not-eof? ch)]))
 
+(define opts-char? name-char?)
+
 (define (char+port ch in)
   (define prefix-str (string ch))
   (define prefix-port (open-input-string prefix-str))
@@ -52,7 +54,7 @@
           [bytes? (ends-with-#? name)]
           [in     (if bytes? (char+port #\# in) in)]
           [data   (read-syntax/recursive src in #f readtable)]
-          [opts?  (name-char? (peek-char in))]
+          [opts?  (opts-char? (peek-char in))]
           [opts   (and opts? (read-syntax/recursive src in #f readtable))]
           [opts   (and opts? (symbol->string (syntax-e opts)))])
      (cond
@@ -63,19 +65,22 @@
   (lambda (ch in src line col pos)
     (define peek-in (peeking-input-port in))
     (let loop ([chars-ahead 0])
-      (let* ([peek-ch          (read-char peek-in)]
-             [peek-ch+         (peek-char peek-in)]
-             [name-next?       (name-char? peek-ch)]
-             [string-next?     (equal? peek-ch #\")]
-             [bytestring-next? (and (equal? peek-ch #\#)
-                                    (equal? peek-ch+ #\"))]
-             [any-string-next? (and (positive? chars-ahead)
-                                    (or string-next? bytestring-next?))])
+      (let* ([peek-ch            (read-char peek-in)]
+             [peek-ch+           (peek-char peek-in)]
+             [name-char-next?    (name-char? peek-ch)]
+             [string-next?       (equal? peek-ch #\")]
+             [bytestring-next?   (and (equal? peek-ch #\#)
+                                      (equal? peek-ch+ #\"))]
+             [any-string-next?   (or string-next? 
+                                     bytestring-next?)]
+             [magic-string-next? (and any-string-next?
+                                      (positive? chars-ahead))])
         (cond
-          [any-string-next?
+          [magic-string-next?
            (read-magic-string src in ch readtable)]
-          [name-next?
-           (loop (add1 chars-ahead))]
+          [name-char-next?
+           (loop
+            (add1 chars-ahead))]
           [else
            (read-syntax/recursive src in ch readtable)])))))
   
