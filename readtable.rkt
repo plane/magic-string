@@ -11,11 +11,18 @@
          syntax/strip-context
          threading)
 
+;;
+;; utility functions
+;;
 (define eof? eof-object?)
 
 (define not-eof?
   (compose not eof?))
 
+;;
+;; #%string-literal-... names and post-string options both continue until one
+;; of these chars is found
+;;
 (define (name-char? ch)
   (case ch
     [(#\space
@@ -32,14 +39,23 @@
     [else
      (not-eof? ch)]))
 
-(define opts-char? name-char?)
+(define (opts-char? ch)
+  (name-char? ch))
 
+;;
+;; used to essentially push a char we've already read back onto the port,
+;; although of course we return a new port instead of mutating the existing
+;; port here
+;;
 (define (char+port ch in)
   (define prefix-str (string ch))
   (define prefix-port (open-input-string prefix-str))
   (input-port-append #f prefix-port in))
 
-(define (ends-with-#? syntax)
+;;
+;; this is used to check if we have a bytestring or not
+;;
+(define (syntax-ends-with-#? syntax)
   (~> syntax
       syntax-e
       symbol->string
@@ -47,11 +63,21 @@
       last
       (equal? #\#)))
 
+;;
+;; read a magic-string:
+;;
+;;     #name"args"          =>  (#%string-literal-name "args")
+;;     #name#"args"         =>  (#%string-literal-name# #"args")
+;;     #name"args"opts      =>  (#%string-literal-name "args" #:opts "opts")
+;;     #name#"args"opts     =>  (#%string-literal-name# #"args" #:opts "opts")
+;;
+;; it can be a byte-string or have opts; opts are stringified.
+;;
 (define (read-magic-string src in ch readtable)
   (strip-context
    (let* ([name     (read-syntax/recursive src in #f readtable)]
           [name-fmt (format-id #f "#%string-literal-~a" name)]
-          [bytes?   (ends-with-#? name)]
+          [bytes?   (syntax-ends-with-#? name)]
           [in       (if bytes? (char+port #\# in) in)]
           [str-arg  (read-syntax/recursive src in #f readtable)]
           [opts?    (opts-char? (peek-char in))]
@@ -61,6 +87,10 @@
        [opts? #`(#,name-fmt #,str-arg #:opts #,opts-str)]
        [else  #`(#,name-fmt #,str-arg)]))))
 
+;;
+;; read ahead in the input stream to see if we've got a magic string.
+;; if so, read it with `read-magic-string`; otherwise, read normally
+;;
 (define (make-magic-string-proc readtable)
   (lambda (ch in src line col pos)
     (define peek-in (peeking-input-port in))
@@ -83,13 +113,20 @@
             (add1 name-char-count))]
           [else
            (read-syntax/recursive src in ch readtable)])))))
-  
+
+;;
+;; we'll take over # so we can check for magic strings, but we'll fall
+;; through to the default dispatch table if we don't find one
+;;
 (define (make-magic-string-readtable [orig-readtable (current-readtable)])
   (make-readtable orig-readtable
                   #\#
                   'non-terminating-macro
                   (make-magic-string-proc orig-readtable)))
 
+;;
+;; these functions allow our #lang to use the modified readtable
+;;
 (define (magic-string-read in)
   (parameterize ([current-readtable (make-magic-string-readtable)])
     (read in)))
@@ -103,6 +140,11 @@
   (parameterize ([current-readtable readtable])
     (thunk)))
 
+;;
+;; we'll test our reader here, but we aren't concerned with the details
+;; of any of the #%string-literal-.+#? forms here; they must be defined
+;; provided and tested separately
+;;
 (module+ test
   (require rackunit/chk)
 
@@ -135,5 +177,5 @@
    (read-test "#f\"f-test\"")     '(#%string-literal-f "f-test")
    (read-test "#foo\"bar\"")      '(#%string-literal-foo "bar")
 
-   ;; they can have optional arguments
+   ;; they can have optional arguments, which are stringified
    (read-test "#foo\"bar\"baz")   '(#%string-literal-foo "bar" #:opts "baz")))
