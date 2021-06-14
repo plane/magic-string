@@ -11,8 +11,9 @@
    (syntax "i ate your string, sorry")]
   [(_ args)
    (syntax "no options")])
-  
 
+#px"[\\s]*"
+	
 #f"this is a format string {foo} {bar}"
 #f"this is a format string {foo} {bar}"opts
 
@@ -24,3 +25,4 @@
 
 (string-append "foo" #abc"xyz")
 
+#px"hi"

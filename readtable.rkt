@@ -49,14 +49,21 @@
   (lambda (ch in src line col pos)
     (define peek-in (peeking-input-port in))
     (let loop ([chars-ahead 0])
-      (define peek-ch (read-char peek-in))
-      (cond
-        [(and (equal? peek-ch #\")
-              (positive? chars-ahead))
-         (read-magic-string src in ch readtable)]
-        [(name-char? peek-ch)
-         (loop (add1 chars-ahead))]
-        [else (read-syntax/recursive src in ch readtable)]))))
+      (let* ([peek-ch          (read-char peek-in)]
+             [peek-ch+         (peek-char peek-in)]
+             [name-next?       (name-char? peek-ch)]
+             [string-next?     (equal? peek-ch #\")]
+             [bytestring-next? (and (equal? peek-ch #\#)
+                                    (equal? peek-ch+ #\"))]
+             [any-string-next? (and (positive? chars-ahead)
+                                    (or string-next? bytestring-next?))])
+        (cond
+          [any-string-next?
+           (read-magic-string src in ch readtable)]
+          [name-next?
+           (loop (add1 chars-ahead))]
+          [else
+           (read-syntax/recursive src in ch readtable)])))))
   
 (define (make-magic-string-readtable [orig-readtable (current-readtable)])
   (make-readtable orig-readtable
@@ -89,5 +96,9 @@
    (read-test "#true") #true
    (read-test "#\"abc\"") '#"abc"
    (read-test "#f\"f-test\"") '(#%string-literal-f "f-test")
+   (read-test "#rx\"re-test\"") '(#%string-literal-rx "re-test")
+   (read-test "#rx#\"re-test\"") '(#%string-literal-rx# "re-test")
+   (read-test "#px\"re-test\"") '(#%string-literal-px "re-test")
+   (read-test "#px#\"re-test\"") '(#%string-literal-px# "re-test")
    (read-test "#foo\"bar\"") '(#%string-literal-foo "bar")
    (read-test "#foo\"bar\"baz") '(#%string-literal-foo "bar" #:opts "baz")))
