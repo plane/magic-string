@@ -16,9 +16,9 @@
   (pregexp s))
 
 (define-syntax-parse-rule
-  (#%string-literal-rx# s)
-  (byte-regexp s))
+  (#%string-literal-rx# bs)
+  (byte-regexp bs))
 
 (define-syntax-parse-rule
-  (#%string-literal-px# s)
-  (byte-pregexp s))
+  (#%string-literal-px# bs)
+  (byte-pregexp bs))
