@@ -32,15 +32,18 @@
 
 (define (read-magic-string src in ch readtable)
   (let* ([name  (read-syntax/recursive src in #f readtable)]
+         [name? (not-eof? name)]
+         [name  (format-id #f "#%string-literal-~a" name)]
          [data  (read-syntax/recursive src in #f readtable)]
+         [data? (not-eof? data)]
          [opts? (name-char? (peek-char in))]
          [opts  (and opts? (read-syntax/recursive src in #f readtable))]
-         [name* (format-id name "#%string-literal-~a" name)])
+         [opts  (and opts? (symbol->string (syntax-e opts)))])
     (cond
-      [(eof? name) #f]
-      [(eof? data) #f]
-      [opts?       (strip-context #`(#,name* #,data #:opts #,opts))]
-      [else        (strip-context #`(#,name* #,data))])))
+      [(not name?) #f]
+      [(not data?) #f]
+      [opts?       (strip-context #`(#,name #,data #:opts #,opts))]
+      [else        (strip-context #`(#,name #,data))])))
 
 (define (make-magic-string-proc readtable)
   (lambda (ch in src line col pos)
@@ -87,4 +90,4 @@
    (read-test "#\"abc\"") '#"abc"
    (read-test "#f\"f-test\"") '(#%string-literal-f "f-test")
    (read-test "#foo\"bar\"") '(#%string-literal-foo "bar")
-   (read-test "#foo\"bar\"baz") '(#%string-literal-foo "bar" #:opts baz)))
+   (read-test "#foo\"bar\"baz") '(#%string-literal-foo "bar" #:opts "baz")))
