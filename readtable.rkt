@@ -31,19 +31,20 @@
      (not-eof? ch)]))
 
 (define (read-magic-string src in ch readtable)
-  (let* ([name  (read-syntax/recursive src in #f readtable)]
-         [name? (not-eof? name)]
-         [name  (format-id #f "#%string-literal-~a" name)]
-         [data  (read-syntax/recursive src in #f readtable)]
-         [data? (not-eof? data)]
-         [opts? (name-char? (peek-char in))]
-         [opts  (and opts? (read-syntax/recursive src in #f readtable))]
-         [opts  (and opts? (symbol->string (syntax-e opts)))])
-    (cond
-      [(not name?) #f]
-      [(not data?) #f]
-      [opts?       (strip-context #`(#,name #,data #:opts #,opts))]
-      [else        (strip-context #`(#,name #,data))])))
+  (strip-context
+   (let* ([name  (read-syntax/recursive src in #f readtable)]
+          [name? (not-eof? name)]
+          [name  (format-id #f "#%string-literal-~a" name)]
+          [data  (read-syntax/recursive src in #f readtable)]
+          [data? (not-eof? data)]
+          [opts? (name-char? (peek-char in))]
+          [opts  (and opts? (read-syntax/recursive src in #f readtable))]
+          [opts  (and opts? (symbol->string (syntax-e opts)))])
+     (cond
+       [(not name?) #f]
+       [(not data?) #f]
+       [opts?       #`(#,name #,data #:opts #,opts)]
+       [else        #`(#,name #,data)]))))
 
 (define (make-magic-string-proc readtable)
   (lambda (ch in src line col pos)
