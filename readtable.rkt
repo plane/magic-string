@@ -6,7 +6,8 @@
          wrapper1)
 
 (require racket/port
-         racket/syntax)
+         racket/syntax
+         syntax/strip-context)
 
 (define (not-eof . xs)
   (define (not-eof* x)
@@ -18,7 +19,8 @@
          [arg   (read-syntax/recursive src in #f readtable)]
          [name* (format-id name "#%string-literal-~a" name)])
     (if (not-eof name arg)
-        #`(#,name* #,arg)
+        (strip-context 
+          #`(#,name* #,arg))
         #f)))
 
 (define (name-char? ch)
