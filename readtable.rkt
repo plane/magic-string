@@ -69,18 +69,11 @@
            (read-syntax/recursive src in ch readtable)])))))
 
 ;;
-;; utility functions
-;;
-(define eof? eof-object?)
-
-(define not-eof?
-  (compose not eof?))
-
-;;
 ;; #%string-literal-... names and post-string options both continue until one
-;; of these chars is found
+;; of these chars is found, or end-of-file is reached
 ;;
 (define (name-char? ch)
+  (define eof? (eof-object? ch))
   (case ch
     [(#\space
       #\tab
@@ -94,7 +87,7 @@
       #\{
       #\}) #f]
     [else
-     (not-eof? ch)]))
+     (not eof?)]))
 
 (define (opts-char? ch)
   (name-char? ch))
