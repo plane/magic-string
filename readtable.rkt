@@ -45,28 +45,27 @@
 ;; read ahead in the input stream to see if we've got a magic string.
 ;; if so, read it with `read-magic-string`; otherwise, read normally
 ;;
-(define (make-magic-string-proc readtable)
-  (lambda (ch in src line col pos)
-    (define peek-in (peeking-input-port in))
-    (let loop ([name-char-count 0])
-      (let* ([peek-ch            (read-char peek-in)]
-             [peek-ch+           (peek-char peek-in)]
-             [name-char-next?    (name-char? peek-ch)]
-             [string-next?       (equal? peek-ch #\")]
-             [bytestring-next?   (and (equal? peek-ch #\#)
-                                      (equal? peek-ch+ #\"))]
-             [any-string-next?   (or string-next? 
-                                     bytestring-next?)]
-             [magic-string-next? (and any-string-next?
-                                      (positive? name-char-count))])
-        (cond
-          [magic-string-next?
-           (read-magic-string src in ch readtable)]
-          [name-char-next?
-           (loop
-            (add1 name-char-count))]
-          [else
-           (read-syntax/recursive src in ch readtable)])))))
+(define ((make-magic-string-proc readtable) ch in src line col pos)
+  (define peek-in (peeking-input-port in))
+  (let loop ([name-char-count 0])
+    (let* ([peek-ch            (read-char peek-in)]
+           [peek-ch+           (peek-char peek-in)]
+           [name-char-next?    (name-char? peek-ch)]
+           [string-next?       (equal? peek-ch #\")]
+           [bytestring-next?   (and (equal? peek-ch #\#)
+                                    (equal? peek-ch+ #\"))]
+           [any-string-next?   (or string-next?
+                                   bytestring-next?)]
+           [magic-string-next? (and any-string-next?
+                                    (positive? name-char-count))])
+      (cond
+        [magic-string-next?
+         (read-magic-string src in ch readtable)]
+        [name-char-next?
+         (loop
+          (add1 name-char-count))]
+        [else
+         (read-syntax/recursive src in ch readtable)]))))
 
 ;;
 ;; #%string-literal-... names and post-string options both continue until one
